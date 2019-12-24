@@ -4,9 +4,15 @@ import config
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] [%(asctime)s] %(name)s: %(message)s",
+    )
     if err := config.check():
-        print(err)
+        logging.error(err)
         exit(1)
+
+    logging.basicConfig(level=config.log_lvl)
 
     # tx = beans.create_tx(
     #     "narration", "Expenses:Viaje", "Assets:EUR:Leo:Cash", 2498, "EUR"

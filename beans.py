@@ -5,7 +5,6 @@ from datetime import date
 from beancount import loader
 from beancount.core.data import Open as Account
 from beancount.scripts.format import align_beancount
-import log
 
 
 def get_expense_accounts(fname: str) -> list:
@@ -13,7 +12,7 @@ def get_expense_accounts(fname: str) -> list:
     The accounts are sorted and will be stripped of the expense prefix.
     """
 
-    l = log.get("beancount")
+    l = logging.getLogger("beancount")
     entries, errors, options_map = loader.load_file(
         fname, log_timings=l.debug, log_errors=l.error
     )
