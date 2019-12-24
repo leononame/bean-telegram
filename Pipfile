@@ -7,10 +7,13 @@ verify_ssl = true
 pylint = "*"
 jupyter = "*"
 rope = "*"
-autopep8 = "*"
+black = "*"
 
 [packages]
 beancount = "*"
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true

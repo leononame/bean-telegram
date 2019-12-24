@@ -13,7 +13,7 @@ class Config:
     def load(cls):
         c = cls(
             bean_append_file=os.environ.get("BEAN_APPEND_FILE"),
-            bean_file=os.environ.get("BEAN_FILE")
+            bean_file=os.environ.get("BEAN_FILE"),
         )
         return c
 
