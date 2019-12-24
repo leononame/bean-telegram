@@ -11,6 +11,7 @@ class Config:
 
     @classmethod
     def load(cls):
+        """Load the configuration from environment variables."""
         c = cls(
             bean_append_file=os.environ.get("BEAN_APPEND_FILE"),
             bean_file=os.environ.get("BEAN_FILE"),
@@ -18,6 +19,9 @@ class Config:
         return c
 
     def check(self) -> str:
+        """Check if the configuration is in a valid state.
+        Returns an error string otherwise.
+        """
         tpl = "Configuration error: {} is invalid. (value:{})"
 
         if self is None:
