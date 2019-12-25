@@ -9,6 +9,10 @@
 # Windows
 Thumbs.db
 
+# Application data folders
+*.db/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

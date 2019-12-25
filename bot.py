@@ -8,6 +8,7 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     CallbackContext,
+    PicklePersistence,
 )
 from telegram import Update
 
@@ -17,7 +18,9 @@ _log = logging.getLogger("bot")
 
 
 def connect():
-    updater = Updater(config.telegram_api_token, use_context=True)
+    p = PicklePersistence(config.db_dir + "/bot.data")
+
+    updater = Updater(config.telegram_api_token, use_context=True, persistence=p)
     dispatcher = updater.dispatcher
 
     start_handler = CommandHandler("start", start)

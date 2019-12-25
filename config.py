@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from string import Template
 import logging
 
-telegram_api_token = os.environ.get("API_TOKEN")
+telegram_api_token = os.environ.get("TELEGRAM_API_TOKEN")
+db_dir = os.environ.get("DB_DIR") or "/var/lib/beanbot"
 bean_append_file = os.environ.get("BEAN_APPEND_FILE")
 bean_file = os.environ.get("BEAN_FILE")
 verbose = os.environ.get("LOG_VERBOSE") in ["True", "true", "1"]
@@ -22,7 +23,7 @@ def check() -> str:
     if not bean_file:
         return tpl.format("BEAN_FILE", "value is empty")
     if not telegram_api_token:
-        return tpl.format("API_TOKEN", "value is empty")
+        return tpl.format("TELEGRAM_API_TOKEN", "value is empty")
 
     return None
 
