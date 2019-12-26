@@ -3,7 +3,7 @@ import os
 import sys
 
 import beans
-import bot
+from bot import run
 import config
 
 
@@ -24,7 +24,7 @@ def main():
         logging.error("Couldn't create dir {}. Message: {}".format(config.db_dir, e))
         exit(1)
 
-    bot.run()
+    run()
 
     exit(0)
 
