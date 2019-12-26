@@ -17,6 +17,7 @@ from .storage import (
     save_state,
     pop_state,
     save_narration_account,
+    get_narration_account,
 )
 
 _log = logging.getLogger("bot")
@@ -31,7 +32,7 @@ def _parse_message(msg: str) -> beans.Transaction:
 
     # Get the expense account if specified (last word has format [ACCOUNT])
     if m := re.match(r"^\[(.+)\]$", words[-1]):
-        tx.account = m.group(1)
+        tx.expense_account = m.group(1)
         words = words[:-1]
 
     section = tx.tags
@@ -45,7 +46,7 @@ def _parse_message(msg: str) -> beans.Transaction:
 
 
 def _parse_amount(val: str) -> int:
-    """Parse an amount string into the amount in cents. Returns 0 on error."""
+    """Parse an amount string into the amount in cents."""
     if m := re.match(r"^(\d+)[\.,]?(\d{1,2})?$", val):
         amount = int(m.group(1)) * 100
         if cents := m.group(2):
@@ -55,7 +56,7 @@ def _parse_amount(val: str) -> int:
         _log.debug("Amount '{}' parsed to value {}".format(val, amount))
         return amount
     _log.warn("Amount '{}' not parseable".format(val))
-    return 0
+    raise ValueError(f"Amount {val} is not parseable into money.")
 
 
 def _err_handler(update: Update, context: CallbackContext):
@@ -71,7 +72,8 @@ def _create_tx(update: Update, context: CallbackContext):
         _log.debug(
             f"{type(e)} in message parsing: {e}. Original message: `{update.message.text}`"
         )
-        update.effective_message.reply_text(text="I don't understand this.")
+        update.effective_message.reply_text(text="I don't understand this.", quote=True)
+        update.effective_message.reply_text(text="❌ " + update.effective_message.text)
         return
 
     state = ConversationState(
@@ -81,7 +83,25 @@ def _create_tx(update: Update, context: CallbackContext):
         tx=tx,
     )
     if not state.tx.expense_account:
-        # TODO: check narration first
+        if acct := get_narration_account(context, state.tx.narration):
+            state.tx.expense_account = acct
+            save_state(context, state)
+            update.message.reply_markdown(
+                text=f"Use account `{acct}`",
+                quote=True,
+                reply_markup=InlineKeyboardMarkup.from_row(
+                    [
+                        InlineKeyboardButton(
+                            "No", callback_data=f"accounts:{state.id}:back"
+                        ),
+                        InlineKeyboardButton(
+                            "Yes", callback_data=f"confirm:{state.id}"
+                        ),
+                    ]
+                ),
+            )
+            return
+
         save_state(context, state)
         update.message.reply_markdown(
             text="Please choose an account", quote=True, reply_markup=(_get_btns(state))
@@ -91,15 +111,16 @@ def _create_tx(update: Update, context: CallbackContext):
         pass
     else:
         update.effective_message.reply_text(
-            text="The account you specified doesn't exist."
+            quote=True, text="The account you specified doesn't exist."
         )
+        update.effective_message.reply_text(text="❌ " + update.message.text)
 
 
 def _commit_tx(update: Update, context: CallbackContext):
     try:
-        query: CallbackQuery = update.callback_query
-        data = query.data.split(":")
-        state = pop_state(context, data[1])
+        state = pop_state(
+            context, str(update.effective_message.reply_to_message.message_id)
+        )
         msg = "✅ `{}`: `{}`".format(
             state.tx.expense_account, beans.format_amount(state.tx.amount),
         )
@@ -109,10 +130,13 @@ def _commit_tx(update: Update, context: CallbackContext):
         beans.append_tx(str(state.tx), config.bean_append_file)
     except Exception as e:
         update.effective_message.edit_text(
-            text="An error occurred, please try again later!"
+            quote=True, text="An error occurred, please try again later!"
+        )
+        update.effective_message.reply_text(
+            text="❌ " + update.effective_message.reply_to_message.text
         )
         _log.error(
-            f"{type(e)} in _commit_tx: {e}. User: {update.effective_user}. Query: {query.data}. State: {state}."
+            f"{type(e)} in _commit_tx: {e}. User: {update.effective_user}. State: {state}."
         )
 
 
@@ -138,7 +162,10 @@ def _select_account(update: Update, context: CallbackContext):
         update.effective_message.edit_reply_markup(reply_markup=markup)
     except Exception as e:
         update.effective_message.edit_text(
-            text="An error occurred, please try again later!"
+            quote=True, text="An error occurred, please try again later!"
+        )
+        update.effective_message.reply_text(
+            text="❌ " + update.effective_message.reply_to_message.text
         )
         _log.error(
             f"{type(e)} in _select_account: {e}. User: {update.effective_user}. Query: {query.data}. State: {state}."

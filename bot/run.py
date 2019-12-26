@@ -7,7 +7,7 @@ from telegram.ext import (
     Filters,
 )
 import config
-from .handlers import _err_handler, _create_tx, _select_account
+from .handlers import _err_handler, _create_tx, _select_account, _commit_tx
 
 
 def run():
@@ -25,9 +25,8 @@ def run():
     dispatcher.add_handler(MessageHandler(Filters.text, _create_tx))
 
     # Handle callbacks (i.e. the button responses)
-    # select the expense account
-    account_handler = CallbackQueryHandler(_select_account, pattern=r"^accounts")
-    dispatcher.add_handler(account_handler)
+    dispatcher.add_handler(CallbackQueryHandler(_select_account, pattern=r"^accounts"))
+    dispatcher.add_handler(CallbackQueryHandler(_commit_tx, pattern=r"^confirm"))
 
     # Start bot
     updater.start_polling()

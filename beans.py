@@ -83,6 +83,7 @@ def append_tx(tx: str, fname: str) -> None:
     if not fname:
         raise ValueError("File must be specified")
     data = ""
+    # TODO check for errors before writing
     with open(fname) as file:
         data = file.read() + tx
         data = align_beancount(data)
