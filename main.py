@@ -1,9 +1,10 @@
-import beans
 import logging
-import config
-import bot
 import os
 import sys
+
+import beans
+import bot
+import config
 
 
 def main():

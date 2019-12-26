@@ -1,17 +1,18 @@
-import telegram
-import config
-import re
 import logging
-from telegram.ext import (
-    Updater,
-    CommandHandler,
-    MessageHandler,
-    Filters,
-    CallbackContext,
-    PicklePersistence,
-)
-from telegram import Update
+import re
 
+import beans
+import config
+import telegram
+from telegram import Update
+from telegram.ext import (
+    CallbackContext,
+    CommandHandler,
+    Filters,
+    MessageHandler,
+    PicklePersistence,
+    Updater,
+)
 
 _re = re.compile(r"^(\d+)[\.,]?(\d{1,2})?$")
 _log = logging.getLogger("bot")
@@ -42,12 +43,14 @@ def tx(update: Update, context: CallbackContext):
     1.23 Some description
     10 Another description
     14.99 Entrance Museum #madrid2019 #vacation
-    2.99 Supermarket [Groceries]"""
+    2.99 Supermarket [Groceries] #vacation"""
     parts = update.message.text.split(" ")
     if len(parts) < 2:
         print_help(update, context)
         return
+    # Get amount
     amount = parse_amount(parts[0])
+    parts = parts[1:]
     if amount == 0:
         _log.debug(
             "Chat with {}. Message incorrect [{}]".format(
@@ -58,8 +61,25 @@ def tx(update: Update, context: CallbackContext):
             chat_id=update.effective_chat.id, text="Couldn't parse amount."
         )
         return
+
+    # Get all the data.
+    data = {"narrative": [], "tags": [], "account": ""}
+    # Get the expense account if specified (last element has format [ACCOUNT])
+    if m := re.match(r"^\[(.+)\]$", parts[-1]):
+        data["account"] = m.group(1)
+        parts = parts[:-1]
+    section = "tags"
+    for p in reversed(parts):
+        if not p.startswith("#"):
+            section = "narrative"
+        _log.warn(section + " " + p)
+        data[section].insert(0, p)
+
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Amount: {}".format(amount)
+        chat_id=update.effective_chat.id,
+        text="Amount: {}. Account: {}. Tags: {}. Narrative: {}".format(
+            amount, data["account"], " ".join(data["tags"]), " ".join(data["narrative"])
+        ),
     )
 
 

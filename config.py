@@ -1,8 +1,7 @@
+import logging
 import os
-
 from dataclasses import dataclass
 from string import Template
-import logging
 
 telegram_api_token = os.environ.get("TELEGRAM_API_TOKEN")
 db_dir = os.environ.get("DB_DIR") or "/var/lib/beanbot"
@@ -26,4 +25,3 @@ def check() -> str:
         return tpl.format("TELEGRAM_API_TOKEN", "value is empty")
 
     return None
-

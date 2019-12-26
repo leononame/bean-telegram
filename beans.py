@@ -85,4 +85,3 @@ def append_tx(tx: str, fname: str) -> None:
         data = align_beancount(data)
     with open(fname, "w") as file:
         file.write(data)
-
