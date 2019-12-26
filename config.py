@@ -1,12 +1,13 @@
 import logging
 import os
-from dataclasses import dataclass
-from string import Template
+
+bean_append_file = os.environ.get("BEAN_APPEND_FILE")
+bean_currency = os.environ.get("BEAN_CURRENCY")
+bean_file = os.environ.get("BEAN_FILE")
 
 telegram_api_token = os.environ.get("TELEGRAM_API_TOKEN")
+
 db_dir = os.environ.get("DB_DIR") or "/var/lib/beanbot"
-bean_append_file = os.environ.get("BEAN_APPEND_FILE")
-bean_file = os.environ.get("BEAN_FILE")
 verbose = os.environ.get("LOG_VERBOSE") in ["True", "true", "1"]
 log_lvl = logging.DEBUG if verbose else logging.INFO
 
@@ -19,6 +20,8 @@ def check() -> str:
 
     if not bean_append_file:
         return tpl.format("BEAN_APPEND_FILE", "value is empty")
+    if not bean_currency:
+        return tpl.format("BEAN_CURRENCY", "value is empty")
     if not bean_file:
         return tpl.format("BEAN_FILE", "value is empty")
     if not telegram_api_token:

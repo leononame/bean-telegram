@@ -1,20 +1,68 @@
 import logging
 import sys
+import uuid
+from dataclasses import dataclass, field
 from datetime import date
+from typing import List
 
 from beancount import loader
 from beancount.core.data import Open as Account
 from beancount.scripts.format import align_beancount
 
+import config
 
-def get_expense_accounts(fname: str) -> list:
+
+@dataclass
+class Transaction:
+    narration: str = ""
+    expense_account: str = ""
+    asset_account: str = ""
+    amount: int = 0
+    tags: List[str] = field(default_factory=lambda: [])
+    id: uuid.UUID = field(default_factory=uuid.uuid4)  # To identify the tx internally
+
+    def __str__(self):
+        if not self.narration:
+            raise ValueError("Narration cannot be empty")
+        if not self.expense_account:
+            raise ValueError("Expense account cannot be empty")
+        if not self.asset_account:
+            raise ValueError("Asset account cannot be empty")
+        if not self.amount:
+            raise ValueError("Amount cannot be 0.")
+        if self.amount < 0:
+            raise ValueError("Amount cannot be negative")
+
+        self.tags.append("#bot")
+        tagstr = " ".join(self.tags)
+
+        # Create amount string
+        m = "-{0}.{1} {2:s}".format(int(self.amount / 100), self.amount % 100, "EUR")
+
+        _, errors, options_map = loader.load_file(config.bean_file)
+        if errors:
+            logging.getLogger("beans").error("Can't print tx: {}".format(errors))
+            return ""
+        if not self.expense_account.startswith(options_map["name_expenses"]):
+            self.expense_account = (
+                options_map["name_expenses"] + ":" + self.expense_account
+            )
+
+        tx = f"""
+{date.today():%Y-%m-%d} * "{self.narration}" {tagstr}
+    {self.asset_account} {m}
+    {self.expense_account}"""
+        return tx
+
+
+def get_expense_accounts() -> list:
     """Get the expense accounts of a beancount file. 
     The accounts are sorted and will be stripped of the expense prefix.
     """
 
     l = logging.getLogger("beancount")
     entries, errors, options_map = loader.load_file(
-        fname, log_timings=l.debug, log_errors=l.error
+        config.bean_file, log_timings=l.debug, log_errors=l.error
     )
     if errors:
         return None
@@ -27,50 +75,6 @@ def get_expense_accounts(fname: str) -> list:
         if type(e) is Account and e.account.startswith(prefix)
     ]
     return sorted(accounts)
-
-
-def create_tx(
-    narr: str, exp_acct: str, asset_acct: str, amount: int, currency: str, tag: str = ""
-) -> str:
-    """Create a new transaction string for beancount. The transaction will
-    have the flag '*'.
-    
-    Args:
-        narr: Narration of the transaction.
-        exp_acct: Expense account to which the transaction will be written.
-        asset_acct: ASset account from which the transaction will be taken.
-        amount: Amount as cents (or whatever the smallest unit is called in your currency).
-        currency: Name of the currency in beancount.
-        tag: An optional taglist, comma separated. The tag 'bot' will always be added.
-    """
-    if not narr:
-        raise ValueError("Narration cannot be empty")
-    if not exp_acct:
-        raise ValueError("Expense account cannot be empty")
-    if not asset_acct:
-        raise ValueError("Asset account cannot be empty")
-    if not amount:
-        raise ValueError("Amount cannot be 0.")
-    if amount < 0:
-        raise ValueError("Amount cannot be negative")
-    if not currency:
-        raise ValueError("Currency cannot be empty.")
-
-    # Create list of tags
-    tags = ["bot"]
-    if tag:
-        tags.extend(tag.split(","))
-    tagstr = " ".join([f"#{t}" for t in tags])
-
-    # Create amount string
-    m = "-{0}.{1} {2:s}".format(int(amount / 100), amount % 100, currency)
-
-    tx = f"""
-{date.today():%Y-%m-%d} * "{narr}" {tagstr}
-    {asset_acct} {m}
-    {exp_acct}"""
-
-    return tx
 
 
 def append_tx(tx: str, fname: str) -> None:

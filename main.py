@@ -24,7 +24,7 @@ def main():
         logging.error("Couldn't create dir {}. Message: {}".format(config.db_dir, e))
         exit(1)
 
-    bot.connect()
+    bot.run()
 
     exit(0)
 
