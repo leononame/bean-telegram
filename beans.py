@@ -37,21 +37,20 @@ class Transaction:
         tagstr = " ".join(self.tags)
 
         # Create amount string
-        m = "-{0}.{1} {2:s}".format(int(self.amount / 100), self.amount % 100, "EUR")
+        m = format_amount(self.amount)
 
         _, errors, options_map = loader.load_file(config.bean_file)
         if errors:
             logging.getLogger("beans").error("Can't print tx: {}".format(errors))
             return ""
-        if not self.expense_account.startswith(options_map["name_expenses"]):
-            self.expense_account = (
-                options_map["name_expenses"] + ":" + self.expense_account
-            )
+        exp = self.expense_account
+        if not exp.startswith(options_map["name_expenses"]):
+            exp = options_map["name_expenses"] + ":" + exp
 
         tx = f"""
 {date.today():%Y-%m-%d} * "{self.narration}" {tagstr}
     {self.asset_account} {m}
-    {self.expense_account}"""
+    {exp}"""
         return tx
 
 
@@ -89,3 +88,9 @@ def append_tx(tx: str, fname: str) -> None:
         data = align_beancount(data)
     with open(fname, "w") as file:
         file.write(data)
+
+
+def format_amount(input: int) -> str:
+    m = "-{0}.{1} {2:s}".format(int(input / 100), input % 100, config.bean_currency)
+    return m
+

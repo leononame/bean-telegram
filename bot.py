@@ -6,7 +6,13 @@ import uuid
 import beans
 import config
 import telegram
-from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
+    ParseMode,
+)
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -37,7 +43,7 @@ def run():
 
     # Handle callbacks (i.e. the button responses)
     # select the expense account
-    account_handler = CallbackQueryHandler(select_account, pattern=r"^account=.*$")
+    account_handler = CallbackQueryHandler(select_account, pattern=r"^account=")
     dispatcher.add_handler(account_handler)
 
     start_handler = CommandHandler("start", start)
@@ -71,6 +77,10 @@ def select_account(update: Update, context: CallbackContext):
         tx.asset_account = "Assets:EUR:Cash"
         tx.expense_account = cb["account"]
         beans.append_tx(str(tx), config.bean_append_file)
+        msg = "✅ `{}`: `{}`".format(tx.expense_account, beans.format_amount(tx.amount),)
+        # TODO: delete callback and transaction
+        update.effective_message.edit_text(text=msg, parse_mode=ParseMode.MARKDOWN)
+        save_narration(context, tx.narration, tx.expense_account)
     except Exception as e:
         update.effective_message.edit_text(
             text="An error occurred, I couldn't find your data. Please try again!"
@@ -85,12 +95,7 @@ def select_account(update: Update, context: CallbackContext):
 
 
 def tx(update: Update, context: CallbackContext):
-    """This handler handles incoming messages. It is intended to parse a message for spendin.
-    and process it. The format is `Amount Description #tags [Expense Account]. Valid examples are:
-    1.23 Some description
-    10 Another description
-    14.99 Entrance Museum #madrid2019 #vacation
-    2.99 Supermarket [Groceries] #vacation"""
+    """This handler handles incoming messages. It is intended to parse a message for spending."""
     parts = update.message.text.split(" ")
     if len(parts) < 2:
         print_help(update, context)
@@ -131,7 +136,7 @@ def tx(update: Update, context: CallbackContext):
     # Select account
     if not t.expense_account:
         # If the same narration has already been used
-        if acct := context.user_data.get(t.narration):
+        if acct := get_narration(context, t.narration):
             t.expense_account = acct
             save_tx(context, t)
             update.message.reply_markdown(
@@ -213,6 +218,14 @@ def get_callback(context: CallbackContext, uid: str) -> Dict:
     return t
 
 
+def get_narration(context: CallbackContext, narration: str) -> str:
+    d = context.user_data.get("narrations")
+    if d == None:
+        return None
+    t = d.get(narration)
+    return t
+
+
 def save_tx(context: CallbackContext, tx: beans.Transaction):
     d = context.user_data.get("transactions")
     if d == None:
@@ -230,3 +243,11 @@ def save_callback(context: CallbackContext, data: Dict) -> uuid.UUID:
         data["id"] = uuid.uuid4()
     d[str(data["id"])] = data
     return data["id"]
+
+
+def save_narration(context: CallbackContext, narration: str, account: str):
+    d = context.user_data.get("narrations")
+    if d == None:
+        context.user_data["narrations"] = {}
+        d = context.user_data["narrations"]
+    d[narration] = account
