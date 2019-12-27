@@ -8,6 +8,7 @@ from typing import List
 from beancount import loader
 from beancount.core.data import Open as Account
 from beancount.scripts.format import align_beancount
+from beancount.ops import validation
 
 import config
 
@@ -83,15 +84,34 @@ def append_tx(tx: str, fname: str) -> None:
     if not fname:
         raise ValueError("File must be specified")
     data = ""
-    # TODO check for errors before writing
+    old = ""
     with open(fname) as file:
-        data = file.read() + tx
+        old = file.read()
+        data = old + tx
         data = align_beancount(data)
     with open(fname, "w") as file:
         file.write(data)
+    # on error write old data
+    if errs := check():
+        with open(fname, "w") as file:
+            file.write(data)
+            raise ValueError("Data invalid: " + str(errs))
 
 
 def format_amount(input: int) -> str:
     m = "-{0}.{1} {2:s}".format(int(input / 100), input % 100, config.bean_currency)
     return m
+
+
+def check():
+    l = logging.getLogger("beancount")
+    _, errors, _ = loader.load_file(
+        config.bean_file,
+        log_errors=l.error,
+        extra_validations=validation.HARDCORE_VALIDATIONS,
+    )
+    if errors:
+        logging.getLogger("beans").error(f"Check failed: {errors}")
+        return errors
+    return None
 
