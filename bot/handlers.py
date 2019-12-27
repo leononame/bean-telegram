@@ -107,7 +107,8 @@ def _create_tx(update: Update, context: CallbackContext):
             text="Please choose an account", quote=True, reply_markup=(_get_btns(state))
         )
     elif state.tx.expense_account in beans.get_expense_accounts():
-        # TODO: create directly
+        save_state(context, state)
+        _commit_tx(update, context)
         pass
     else:
         update.effective_message.reply_text(
@@ -117,21 +118,28 @@ def _create_tx(update: Update, context: CallbackContext):
 
 
 def _commit_tx(update: Update, context: CallbackContext):
+    answer = (
+        update.effective_message.edit_text
+        if update.effective_message.reply_to_message
+        else update.effective_message.reply_text
+    )
+    id = (
+        update.effective_message.reply_to_message.message_id
+        if update.effective_message.reply_to_message
+        else update.effective_message.message_id
+    )
+
     try:
-        state = pop_state(
-            context, str(update.effective_message.reply_to_message.message_id)
-        )
+        state = pop_state(context, str(id))
         msg = "✅ `{}`: `{}`".format(
             state.tx.expense_account, beans.format_amount(state.tx.amount),
         )
-        update.effective_message.edit_text(text=msg, parse_mode=ParseMode.MARKDOWN)
+        answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
         save_narration_account(context, state.tx.narration, state.tx.expense_account)
         state.tx.asset_account = "Assets:EUR:Cash"  # TODO
         beans.append_tx(str(state.tx), config.bean_append_file)
     except Exception as e:
-        update.effective_message.edit_text(
-            quote=True, text="An error occurred, please try again later!"
-        )
+        answer(quote=True, text="An error occurred, please try again later!")
         update.effective_message.reply_text(
             text="❌ " + update.effective_message.reply_to_message.text
         )
