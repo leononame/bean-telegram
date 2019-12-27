@@ -24,6 +24,11 @@ _log = logging.getLogger("bot")
 
 
 def _parse_message(msg: str) -> beans.Transaction:
+    # Ignore some prefixes
+    msg = msg[1:] if msg.startswith("!") else msg
+    msg = msg[:-1] if msg.endswith("!") else msg
+    msg = msg[2:] if msg.startswith("❌ ") else msg
+
     words = msg.split(" ")
     amount = _parse_amount(words[0])
     words = words[1:]
@@ -86,6 +91,10 @@ def _create_tx(update: Update, context: CallbackContext):
         if acct := get_narration_account(context, state.tx.narration):
             state.tx.expense_account = acct
             save_state(context, state)
+            # The bang means to not ask
+            if update.message.text.startswith("!") or update.message.text.endswith("!"):
+                _commit_tx(update, context)
+                return
             update.message.reply_markdown(
                 text=f"Use account `{acct}`",
                 quote=True,
