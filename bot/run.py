@@ -17,7 +17,8 @@ from .handlers import (
     _auth_handler,
     _start_handler,
     _add_user_handler,
-    _set_user_handler,
+    _set_user_file_handler,
+    _set_user_account_handler,
     _help_handler,
     _list_users_handler,
     _check_config_handler,
@@ -48,7 +49,10 @@ def run():
 
     # Add, remove users and set their beancount file
     dispatcher.add_handler(CommandHandler("add", _add_user_handler), CONFIG_GROUP)
-    dispatcher.add_handler(CommandHandler("set", _set_user_handler), CONFIG_GROUP)
+    dispatcher.add_handler(CommandHandler("file", _set_user_file_handler), CONFIG_GROUP)
+    dispatcher.add_handler(
+        CommandHandler("account", _set_user_account_handler), CONFIG_GROUP
+    )
     dispatcher.add_handler(CommandHandler("users", _list_users_handler), CONFIG_GROUP)
     dispatcher.add_handler(
         MessageHandler(Filters.all, _check_config_handler), group=CONFIG_GROUP

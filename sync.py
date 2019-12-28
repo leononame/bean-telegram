@@ -27,12 +27,21 @@ class GitSync(Sync):
 
     def pull(self):
         # We expect git to be installed and pull to pull wherever you want to pull from
-        subprocess.run(["git", "pull"], cwd=self.os_path, check=True)
-
-    def push(self, fname):
-        subprocess.run([f"git add {fname}"], cwd=self.os_path, check=True, shell=True)
         subprocess.run(
-            ["git", "commit", "-m", "Automatic commit"], cwd=self.os_path, check=True
+            ["git", "pull"], cwd=self.os_path, check=True, capture_output=True
         )
-        subprocess.run(["git", "push"], cwd=self.os_path, check=True)
+
+    def push(self, fname, msg=""):
+        subprocess.run(
+            ["git", "add", fname], cwd=self.os_path, check=True, capture_output=True
+        )
+        subprocess.run(
+            ["git", "commit", "-m", msg if msg else "Automatic commit"],
+            cwd=self.os_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "push"], cwd=self.os_path, check=True, capture_output=True
+        )
         pass

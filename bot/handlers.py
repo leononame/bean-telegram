@@ -128,9 +128,30 @@ def _add_user_handler(update: Update, context: CallbackContext):
         )
 
 
-def _set_user_handler(update: Update, context: CallbackContext):
+def _set_user_account_handler(update: Update, context: CallbackContext):
     if len(context.args) != 2:
-        update.effective_message.reply_text("Usage /set id file")
+        update.effective_message.reply_text("Usage /account id account")
+    id = str(context.args[0])
+    acct = str(context.args[1])
+
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        u = data[str(update.effective_user.id)]
+        if not u or not u["admin"]:
+            update.effective_message.reply_text(
+                "You are not authorized to set userdata."
+            )
+
+        if not data.get(id):
+            update.effective_message.reply_text(f"User with id {id} does not exist.")
+            return
+        data[id]["account"] = acct
+        update.effective_message.reply_text(f"Set account to {acct}")
+
+
+def _set_user_file_handler(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.effective_message.reply_text("Usage /file id file")
     id = str(context.args[0])
     file = str(context.args[1])
 
@@ -155,16 +176,17 @@ def _list_users_handler(update: Update, context: CallbackContext):
         u = data[str(update.effective_user.id)]
         if not u or not u["admin"]:
             update.effective_message.reply_text("You are not authorized to see users.")
-        msg = ""
         for id, user in data.items():
             name = user.get("name")
             file = user.get("file")
-            msg += f"{name} `{id}`\n"
-            msg += f"file: `{file}`\n"
-            if user.get("admin"):
-                msg += "`admin`\n"
-            msg += "\n"
-        update.effective_message.reply_markdown(msg)
+            acct = user.get("account")
+            msg = f"""*{name}*
+`{id}`
+`   file: ``{file}`
+`account: ``{acct}`
+`  admin: ``{user["admin"]}`
+"""
+            update.effective_message.reply_markdown(msg)
 
 
 def _check_config_handler(update: Update, context: CallbackContext):
@@ -178,6 +200,12 @@ def _check_config_handler(update: Update, context: CallbackContext):
         f: str = context.user_data["opts"]["file"]
         f = f.replace("%Y", f"{date.today():%Y}").replace("%M", f"{date.today():%m}")
         context.user_data["opts"]["file"] = f
+    # If account is not defined, you may not skip the config phase
+    if not context.user_data["opts"].get("account"):
+        update.effective_message.reply_text(
+            "No account is specified. Please ask the admin to specify an account for you."
+        )
+        raise DispatcherHandlerStop()
 
 
 def _help_handler(update: Update, context: CallbackContext):
@@ -189,9 +217,12 @@ def _help_handler(update: Update, context: CallbackContext):
     `/add :ID :NAME`
 where :ID is the user ID and :NAME a simple name. You can find out the user ID by forwarding a user's message to @userinfobot.
 
-If you want to set a different beancount file for that user, type:
-    `/set :ID :FILE`
+Each user needs two settings: a file and a target account. The file will be the beancount file in which the transaction will be logged. The target account is the user's asset account which will be used.
+    `/file :ID :FILE`
+    `/account` :ID :ACCOUNT
 :FILE is a relative path from the beancount base folder. E.g., the path `cash/john.bean` would use a file named `john.bean` in the subfolder `cash`. The path supports the directives `%Y` for the current year and `%M` for the current month. If you want to set your own file, just use the command with your own ID. You HAVE to list a file for each user.
+:ACCOUNT is the asset account from which data will be retrieved, e.g. something like Assets:Cash
+:ID is the id of the user.
 
 You can inspect all users with /users.
             """
@@ -211,6 +242,8 @@ on the second transaction, I will ask you if you want to use the same account as
 
 If you know the expense account, you can tell me directly:
     `2.5 Supermarket [Shopping:Groceries]`
+
+Type /help anytime if you want to read this message again.
 """
     )
 
@@ -290,10 +323,12 @@ def _commit_tx(update: Update, context: CallbackContext):
             state.tx.expense_account, beans.format_amount(state.tx.amount),
         )
         save_narration_account(context, state.tx.narration, state.tx.expense_account)
-        state.tx.asset_account = "Assets:EUR:Cash"  # TODO
+        state.tx.asset_account = context.user_data["opts"]["account"]
         config.synchronizer.pull()
         beans.append_tx(str(state.tx), context.user_data["opts"]["file"])
-        config.synchronizer.push(context.user_data["opts"]["file"])
+        orig_msg = update.effective_message.reply_to_message.text if update.effective_message.reply_to_message else update.effective_message.text
+        commit_msg = context.user_data["opts"]["name"] + ": " + orig_msg
+        config.synchronizer.push(context.user_data["opts"]["file"], msg=commit_msg)
         answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     except Exception as e:
         answer(quote=True, text="An error occurred, please try again later!")
