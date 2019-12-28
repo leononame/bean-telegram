@@ -2,3 +2,6 @@
 - WebDAV test
 - Code cleanup
 - Delete users
+- Tests
+- CI builds and docker publish
+- Async push operation
