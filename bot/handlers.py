@@ -291,16 +291,19 @@ def _commit_tx(update: Update, context: CallbackContext):
         )
         save_narration_account(context, state.tx.narration, state.tx.expense_account)
         state.tx.asset_account = "Assets:EUR:Cash"  # TODO
+        config.synchronizer.pull()
         beans.append_tx(str(state.tx), context.user_data["opts"]["file"])
+        config.synchronizer.push(context.user_data["opts"]["file"])
         answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     except Exception as e:
         answer(quote=True, text="An error occurred, please try again later!")
-        update.effective_message.reply_text(
-            text="❌ " + update.effective_message.reply_to_message.text
-        )
         _log.error(
             f"{type(e)} in _commit_tx: {e}. User: {update.effective_user}. State: {state}."
         )
+        if update.effective_message.reply_to_message:
+            update.effective_message.reply_text(
+                text="❌ " + update.effective_message.reply_to_message.text
+            )
 
 
 def _select_account(update: Update, context: CallbackContext):

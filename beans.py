@@ -97,10 +97,12 @@ def append_tx(tx: str, fname: str) -> None:
     if not path.exists(path.dirname(fname)):
         os.makedirs(os.path.dirname(fname), 0o755)
 
-    with open(fname, "w+") as file:
+    with open(fname, "r") as file:
         old = file.read()
-        data = old + tx
-        data = align_beancount(data)
+
+    data = old + tx
+    data = align_beancount(data)
+    with open(fname, "w") as file:
         file.write(data)
     # on error write old data
     if errs := check():

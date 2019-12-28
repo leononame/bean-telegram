@@ -1,5 +1,6 @@
 import logging
 import os
+import sync
 
 bean_path = os.environ.get("BEAN_PATH")
 bean_main_file = os.environ.get("BEAN_MAIN_FILE")
@@ -10,6 +11,10 @@ telegram_api_token = os.environ.get("TELEGRAM_API_TOKEN")
 db_dir = os.environ.get("DB_DIR") or "/var/lib/beanbot"
 verbose = os.environ.get("LOG_VERBOSE") in ["True", "true", "1"]
 log_lvl = logging.DEBUG if verbose else logging.INFO
+
+synchronizer = sync.Sync(bean_path)
+if os.environ.get("SYNC_METHOD") == "git":
+    synchronizer = sync.GitSync(bean_path)
 
 
 def check() -> str:
