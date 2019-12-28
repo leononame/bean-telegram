@@ -5,12 +5,14 @@ from telegram import (
     CallbackQuery,
     ParseMode,
 )
-from telegram.ext import CallbackContext
+from telegram.ext import CallbackContext, DispatcherHandlerStop
 import logging
 import re
 import config
 import beans
 from typing import List
+from os import path
+import shelve
 from .storage import (
     ConversationState,
     get_state,
@@ -67,6 +69,135 @@ def _parse_amount(val: str) -> int:
 def _err_handler(update: Update, context: CallbackContext):
     """Standard error handler."""
     _log.error("_log_err: {}: {}.".format(type(context.error), context.error))
+
+
+def _auth_handler(update: Update, context: CallbackContext):
+    """Check if user is in our user list."""
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        # If user is not in our users class, stop the handler
+        u = str(update.effective_user.id)
+        if not data.get(u):
+            update.effective_message.reply_text(
+                "You are not authorized to use this bot."
+            )
+            raise DispatcherHandlerStop()
+
+
+def _start_handler(update: Update, context: CallbackContext):
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        # If user is not in our users class, stop the handler
+        u = str(update.effective_user.id)
+        if len(data) == 0:
+            data[u] = {
+                "admin": True,
+                "name": update.effective_user["first_name"],
+            }
+            update.effective_message.reply_text(
+                "You have been added as bot admin. You can add new users and set their configuration. Please use /help for more information about the commands."
+            )
+    _auth_handler(update, context)
+    _help_handler(update, context)
+
+
+def _add_user_handler(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.effective_message.reply_text("Usage: /add id name")
+        return
+    id = str(context.args[0])
+    name = str(context.args[1])
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        u = data[str(update.effective_user.id)]
+        if not u or not u["admin"]:
+            update.effective_message.reply_text(
+                "You are not authorized to add new users."
+            )
+
+        if data.get(id):
+            update.effective_message.reply_text("User with id already exists")
+            return
+        data[id] = {"name": name, "admin": False}
+        update.effective_message.reply_text(f"User with ID {id} has been added as {name}")
+
+
+def _set_user_handler(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.effective_message.reply_text("Usage /set id file")
+    id = str(context.args[0])
+    file = str(context.args[1])
+
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        u = data[str(update.effective_user.id)]
+        if not u or not u["admin"]:
+            update.effective_message.reply_text(
+                "You are not authorized to set userdata."
+            )
+
+        if not data.get(id):
+            update.effective_message.reply_text(f"User with id {id} does not exist.")
+            return
+        data[id]["file"] = file
+        update.effective_message.reply_text(f"Set file to {file}")
+
+
+
+def _list_users_handler(update: Update, context: CallbackContext):
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        u = data[str(update.effective_user.id)]
+        if not u or not u["admin"]:
+            update.effective_message.reply_text(
+                "You are not authorized to see users."
+            )
+        msg = ""
+        for id, user in data.items():
+            name = user.get("name")
+            file = user.get("file")
+            msg += f"{name} `{id}`\n"
+            msg += f"file: `{file}`\n"
+            if user.get("admin"):
+                msg += "`admin`\n"
+            msg += "\n"
+        update.effective_message.reply_markdown(msg)
+        
+
+
+def _help_handler(update: Update, context: CallbackContext):
+    # Handlers don't run concurrently, so we don't need locking
+    with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
+        if data.get(str(update.effective_user.id))["admin"]:
+            update.effective_message.reply_markdown(
+                text="""You are the admin. If you want to add users, use the following command:
+    `/add :ID :NAME`
+where :ID is the user ID and :NAME a simple name. You can find out the user ID by forwarding a user's message to @userinfobot.
+
+If you want to set a different beancount file for that user, type:
+    `/set :ID :FILE`
+:FILE is a relative path from the beancount base folder. E.g., the path `cash/john.bean` would use a file named `john.bean` in the subfolder `cash`. The path supports the directives `%Y` for the current year and `%M` for the current month. If you want to set your own file, just use the command with your own ID. You HAVE to list a file for each user.
+
+You can inspect all users with /users.
+            """
+            )
+    update.effective_message.reply_markdown(
+        text="""Use me to create a transaction. The most basic format is:
+    `1.5 Coffee`
+
+However, you can specify tags which will be added to the transaction:
+    `1.5 Coffee with my friends #madrid #vacation2019`
+
+I will prompt you for the expense account to be used, but I'll also remember expense accounts, so if you write 
+    `3 Coffee`
+    `2.5 Cofee`
+on the second transaction, I will ask you if you want to use the same account as last time you typed "Coffee". To skip the question and use the account directly, use:
+    `2.5 Coffee!`
+
+If you know the expense account, you can tell me directly:
+    `2.5 Supermarket [Shopping:Groceries]`
+"""
+    )
 
 
 def _create_tx(update: Update, context: CallbackContext):

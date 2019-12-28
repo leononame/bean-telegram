@@ -5,14 +5,34 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     Filters,
+    Handler,
 )
 import config
-from .handlers import _err_handler, _create_tx, _select_account, _commit_tx
+from os import path
+from .handlers import (
+    _err_handler,
+    _create_tx,
+    _select_account,
+    _commit_tx,
+    _auth_handler,
+    _start_handler,
+    _add_user_handler,
+    _set_user_handler,
+    _help_handler,
+    _list_users_handler,
+)
 
 
 def run():
+    # Define groups under which the handlers run. Auth group will first authorize users,
+    # then default group will run with lower priority. Config group will configure user's
+    # data
+    AUTH_GROUP = 0
+    CONFIG_GROUP = 1
+    DEFAULT_GROUP = 5
+
     # Persistence
-    p = PicklePersistence(config.db_dir + "/bot.data")
+    p = PicklePersistence(path.join(config.db_dir, "telegram.pickle"))
 
     # Get bot updater and dispatcher
     updater = Updater(config.telegram_api_token, use_context=True, persistence=p)
@@ -21,12 +41,30 @@ def run():
     # Register error handler
     dispatcher.add_error_handler(_err_handler)
 
+    # _start_handler registers you as admin if you exist. _auth_handler checks if you are allowed to use the bot
+    dispatcher.add_handler(CommandHandler("start", _start_handler), group=AUTH_GROUP)
+    dispatcher.add_handler(MessageHandler(Filters.all, _auth_handler), group=AUTH_GROUP)
+
+    # Add, remove users and set their beancount file
+    dispatcher.add_handler(CommandHandler("add", _add_user_handler), CONFIG_GROUP)
+    dispatcher.add_handler(CommandHandler("set", _set_user_handler), CONFIG_GROUP)
+    dispatcher.add_handler(CommandHandler("users", _list_users_handler), CONFIG_GROUP)
+
+    # Help
+    dispatcher.add_handler(CommandHandler("help", _help_handler), DEFAULT_GROUP)
+
     # Answer to regular messages
-    dispatcher.add_handler(MessageHandler(Filters.text, _create_tx))
+    dispatcher.add_handler(
+        MessageHandler(Filters.text, _create_tx), group=DEFAULT_GROUP
+    )
 
     # Handle callbacks (i.e. the button responses)
-    dispatcher.add_handler(CallbackQueryHandler(_select_account, pattern=r"^accounts"))
-    dispatcher.add_handler(CallbackQueryHandler(_commit_tx, pattern=r"^confirm"))
+    dispatcher.add_handler(
+        CallbackQueryHandler(_select_account, pattern=r"^accounts"), group=DEFAULT_GROUP
+    )
+    dispatcher.add_handler(
+        CallbackQueryHandler(_commit_tx, pattern=r"^confirm"), group=DEFAULT_GROUP
+    )
 
     # Start bot
     updater.start_polling()

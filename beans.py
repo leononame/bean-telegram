@@ -40,7 +40,7 @@ class Transaction:
         # Create amount string
         m = format_amount(self.amount)
 
-        _, errors, options_map = loader.load_file(config.bean_file)
+        _, errors, options_map = loader.load_file(config.bean_main_file)
         if errors:
             logging.getLogger("beans").error("Can't print tx: {}".format(errors))
             return ""
@@ -62,7 +62,7 @@ def get_expense_accounts() -> list:
 
     l = logging.getLogger("beancount")
     entries, errors, options_map = loader.load_file(
-        config.bean_file, log_timings=l.debug, log_errors=l.error
+        config.bean_main_file, log_timings=l.debug, log_errors=l.error
     )
     if errors:
         return None
@@ -106,7 +106,7 @@ def format_amount(input: int) -> str:
 def check():
     l = logging.getLogger("beancount")
     _, errors, _ = loader.load_file(
-        config.bean_file,
+        config.bean_main_file,
         log_errors=l.error,
         extra_validations=validation.HARDCORE_VALIDATIONS,
     )
