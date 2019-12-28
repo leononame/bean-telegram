@@ -1,5 +1,7 @@
 import subprocess
 import config
+from os import path
+from webdav3.client import Client
 
 
 class Sync(object):
@@ -21,7 +23,6 @@ class GitSync(Sync):
     """GitSync synchronizes the changes with a git server.
     """
 
-    # TODO No output of git
     def __init__(self, path: str):
         super().__init__(path)
 
@@ -45,3 +46,39 @@ class GitSync(Sync):
             ["git", "push"], cwd=self.os_path, check=True, capture_output=True
         )
         pass
+
+
+class DavSync(Sync):
+    """DavSync synchronizes the changes with a webdav server.
+    """
+
+    def __init__(
+        self,
+        path: str,
+        dav_path: str,
+        dav_root: str,
+        username: str,
+        password: str,
+        hostname: str,
+    ):
+        super().__init__(path)
+        self.dav_path = dav_path
+        self.username = username
+        self.password = password
+        self.hostname = hostname
+        options = {
+            "webdav_hostname": hostname,
+            "webdav_login": username,
+            "webdav_password": password,
+            "root": dav_root,
+        }
+        self.client = Client(options)
+        self.pull()
+
+    def pull(self):
+        self.client.download_sync(self.dav_path, self.os_path)
+
+    def push(self, fname, msg=""):
+        self.client.upload_file(
+            path.join(self.dav_path, fname), path.join(self.os_path, fname)
+        )

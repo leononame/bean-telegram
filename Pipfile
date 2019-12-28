@@ -12,6 +12,7 @@ black = "*"
 [packages]
 beancount = "*"
 python-telegram-bot = "*"
+webdavclient3 = "*"
 
 [requires]
 python_version = "3.8"

@@ -15,6 +15,14 @@ log_lvl = logging.DEBUG if verbose else logging.INFO
 synchronizer = sync.Sync(bean_path)
 if os.environ.get("SYNC_METHOD") == "git":
     synchronizer = sync.GitSync(bean_path)
+elif os.environ.get("SYNC_METHOD") == "dav":
+    dpath = os.environ.get("DAV_PATH")
+    droot = os.environ.get("DAV_ROOT")
+    duser = os.environ.get("DAV_USER")
+    dpass = os.environ.get("DAV_PASS")
+    dhost = os.environ.get("DAV_HOST")
+    # TODO: check config
+    synchronizer = sync.DavSync(bean_path, dpath, droot, duser, dpass, dhost)
 
 
 def check() -> str:
