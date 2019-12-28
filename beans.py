@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date
 from typing import List
+from os import path
+import os
 
 from beancount import loader
 from beancount.core.data import Open as Account
@@ -40,7 +42,9 @@ class Transaction:
         # Create amount string
         m = format_amount(self.amount)
 
-        _, errors, options_map = loader.load_file(config.bean_main_file)
+        _, errors, options_map = loader.load_file(
+            path.join(config.bean_path, config.bean_main_file)
+        )
         if errors:
             logging.getLogger("beans").error("Can't print tx: {}".format(errors))
             return ""
@@ -62,7 +66,9 @@ def get_expense_accounts() -> list:
 
     l = logging.getLogger("beancount")
     entries, errors, options_map = loader.load_file(
-        config.bean_main_file, log_timings=l.debug, log_errors=l.error
+        path.join(config.bean_path, config.bean_main_file),
+        log_timings=l.debug,
+        log_errors=l.error,
     )
     if errors:
         return None
@@ -85,11 +91,16 @@ def append_tx(tx: str, fname: str) -> None:
         raise ValueError("File must be specified")
     data = ""
     old = ""
-    with open(fname) as file:
+
+    fname = path.join(config.bean_path, fname)
+
+    if not path.exists(path.dirname(fname)):
+        os.makedirs(os.path.dirname(fname), 0o755)
+
+    with open(fname, "w+") as file:
         old = file.read()
         data = old + tx
         data = align_beancount(data)
-    with open(fname, "w") as file:
         file.write(data)
     # on error write old data
     if errs := check():
@@ -106,7 +117,7 @@ def format_amount(input: int) -> str:
 def check():
     l = logging.getLogger("beancount")
     _, errors, _ = loader.load_file(
-        config.bean_main_file,
+        path.join(config.bean_path, config.bean_main_file),
         log_errors=l.error,
         extra_validations=validation.HARDCORE_VALIDATIONS,
     )

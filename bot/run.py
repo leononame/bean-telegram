@@ -20,6 +20,7 @@ from .handlers import (
     _set_user_handler,
     _help_handler,
     _list_users_handler,
+    _check_config_handler,
 )
 
 
@@ -49,6 +50,9 @@ def run():
     dispatcher.add_handler(CommandHandler("add", _add_user_handler), CONFIG_GROUP)
     dispatcher.add_handler(CommandHandler("set", _set_user_handler), CONFIG_GROUP)
     dispatcher.add_handler(CommandHandler("users", _list_users_handler), CONFIG_GROUP)
+    dispatcher.add_handler(
+        MessageHandler(Filters.all, _check_config_handler), group=CONFIG_GROUP
+    )
 
     # Help
     dispatcher.add_handler(CommandHandler("help", _help_handler), DEFAULT_GROUP)

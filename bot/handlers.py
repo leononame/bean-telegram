@@ -9,6 +9,7 @@ from telegram.ext import CallbackContext, DispatcherHandlerStop
 import logging
 import re
 import config
+from datetime import date
 import beans
 from typing import List
 from os import path
@@ -82,6 +83,9 @@ def _auth_handler(update: Update, context: CallbackContext):
                 "You are not authorized to use this bot."
             )
             raise DispatcherHandlerStop()
+        # Save user data for later use in our context
+        if context.user_data.get("opts") != data[u]:
+            context.user_data["opts"] = dict(data[u]).copy()
 
 
 def _start_handler(update: Update, context: CallbackContext):
@@ -119,7 +123,9 @@ def _add_user_handler(update: Update, context: CallbackContext):
             update.effective_message.reply_text("User with id already exists")
             return
         data[id] = {"name": name, "admin": False}
-        update.effective_message.reply_text(f"User with ID {id} has been added as {name}")
+        update.effective_message.reply_text(
+            f"User with ID {id} has been added as {name}"
+        )
 
 
 def _set_user_handler(update: Update, context: CallbackContext):
@@ -143,15 +149,12 @@ def _set_user_handler(update: Update, context: CallbackContext):
         update.effective_message.reply_text(f"Set file to {file}")
 
 
-
 def _list_users_handler(update: Update, context: CallbackContext):
     # Handlers don't run concurrently, so we don't need locking
     with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
         u = data[str(update.effective_user.id)]
         if not u or not u["admin"]:
-            update.effective_message.reply_text(
-                "You are not authorized to see users."
-            )
+            update.effective_message.reply_text("You are not authorized to see users.")
         msg = ""
         for id, user in data.items():
             name = user.get("name")
@@ -162,7 +165,19 @@ def _list_users_handler(update: Update, context: CallbackContext):
                 msg += "`admin`\n"
             msg += "\n"
         update.effective_message.reply_markdown(msg)
-        
+
+
+def _check_config_handler(update: Update, context: CallbackContext):
+    # If file is not defined, you may not skip the config phase
+    if not context.user_data["opts"].get("file"):
+        update.effective_message.reply_text(
+            "No file is specified. Please ask the admin to specify a file for you."
+        )
+        raise DispatcherHandlerStop()
+    else:
+        f: str = context.user_data["opts"]["file"]
+        f = f.replace("%Y", f"{date.today():%Y}").replace("%M", f"{date.today():%m}")
+        context.user_data["opts"]["file"] = f
 
 
 def _help_handler(update: Update, context: CallbackContext):
@@ -274,10 +289,10 @@ def _commit_tx(update: Update, context: CallbackContext):
         msg = "✅ `{}`: `{}`".format(
             state.tx.expense_account, beans.format_amount(state.tx.amount),
         )
-        answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
         save_narration_account(context, state.tx.narration, state.tx.expense_account)
         state.tx.asset_account = "Assets:EUR:Cash"  # TODO
-        beans.append_tx(str(state.tx), config.bean_append_file)
+        beans.append_tx(str(state.tx), context.user_data["opts"]["file"])
+        answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)
     except Exception as e:
         answer(quote=True, text="An error occurred, please try again later!")
         update.effective_message.reply_text(
