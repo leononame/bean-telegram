@@ -5,3 +5,6 @@
 - Tests
 - CI builds and docker publish
 - Async push operation
+- Withdraw money
+- Detail the command preview
+- Logging

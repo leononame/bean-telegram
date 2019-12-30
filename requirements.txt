@@ -1,7 +1,8 @@
 -i https://pypi.org/simple
+argcomplete==1.11.0
 attrs==19.3.0
 beancount==2.2.3
-beautifulsoup4==4.8.1
+beautifulsoup4==4.8.2
 bottle==0.12.18
 cachetools==4.0.0
 certifi==2019.11.28
@@ -19,11 +20,11 @@ more-itertools==8.0.2
 packaging==19.2
 pluggy==0.13.1
 ply==3.11
-py==1.8.0
+py==1.8.1
 pyasn1-modules==0.2.7
 pyasn1==0.4.8
 pycparser==2.19
-pyparsing==2.4.5
+pyparsing==2.4.6
 pytest==5.3.2
 python-dateutil==2.8.1
 python-magic==0.4.15
@@ -36,3 +37,4 @@ tornado==6.0.3
 uritemplate==3.0.1
 urllib3==1.25.7
 wcwidth==0.1.7
+webdavclient3==0.14
