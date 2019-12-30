@@ -8,3 +8,5 @@
 - Withdraw money
 - Detail the command preview
 - Logging
+- Check why format on save does not work
+- DAV root_path and path can be one path

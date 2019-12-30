@@ -13,10 +13,10 @@ class Sync(object):
         self.os_path = path
 
     def pull(self):
-        raise NotImplementedError("Not implemented")
+        return
 
     def push(self, fname: str):
-        raise NotImplementedError("Not implemented")
+        return
 
 
 class GitSync(Sync):

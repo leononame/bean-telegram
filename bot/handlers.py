@@ -129,10 +129,13 @@ def _add_user_handler(update: Update, context: CallbackContext):
 
 
 def _set_user_account_handler(update: Update, context: CallbackContext):
-    if len(context.args) != 2:
-        update.effective_message.reply_text("Usage /account id account")
+    if len(context.args) != 3:
+        update.effective_message.reply_text(
+            "Usage /account id account withdrawal_account"
+        )
     id = str(context.args[0])
     acct = str(context.args[1])
+    wacct = str(context.args[2])
 
     # Handlers don't run concurrently, so we don't need locking
     with shelve.open(path.join(config.db_dir, "users.pickle"), writeback=True) as data:
@@ -146,7 +149,10 @@ def _set_user_account_handler(update: Update, context: CallbackContext):
             update.effective_message.reply_text(f"User with id {id} does not exist.")
             return
         data[id]["account"] = acct
-        update.effective_message.reply_text(f"Set account to {acct}")
+        data[id]["withdrawal_account"] = wacct
+        update.effective_message.reply_text(
+            f"Set account to {acct} and withdrawal account to {wacct}"
+        )
 
 
 def _set_user_file_handler(update: Update, context: CallbackContext):
@@ -180,11 +186,13 @@ def _list_users_handler(update: Update, context: CallbackContext):
             name = user.get("name")
             file = user.get("file")
             acct = user.get("account")
+            wacct = user.get("withdrawal_account")
             msg = f"""*{name}*
 `{id}`
-`   file: ``{file}`
-`account: ``{acct}`
-`  admin: ``{user["admin"]}`
+`    file: ``{file}`
+` account: ``{acct}`
+`withdraw: ``{wacct}`
+`   admin: ``{user["admin"]}`
 """
             update.effective_message.reply_markdown(msg)
 
@@ -206,6 +214,12 @@ def _check_config_handler(update: Update, context: CallbackContext):
             "No account is specified. Please ask the admin to specify an account for you."
         )
         raise DispatcherHandlerStop()
+    # If withdrawal account is not defined, you may not skip the config phase
+    if not context.user_data["opts"].get("withdrawal_account"):
+        update.effective_message.reply_text(
+            "No withdrawal account is specified. Please ask the admin to specify an account for you."
+        )
+        raise DispatcherHandlerStop()
 
 
 def _help_handler(update: Update, context: CallbackContext):
@@ -215,14 +229,15 @@ def _help_handler(update: Update, context: CallbackContext):
             update.effective_message.reply_markdown(
                 text="""You are the admin. If you want to add users, use the following command:
     `/add :ID :NAME`
-where :ID is the user ID and :NAME a simple name. You can find out the user ID by forwarding a user's message to @userinfobot.
+where `:ID` is the user ID and `:NAME` a simple name. You can find out the user ID by forwarding a user's message to @userinfobot.
 
 Each user needs two settings: a file and a target account. The file will be the beancount file in which the transaction will be logged. The target account is the user's asset account which will be used.
     `/file :ID :FILE`
-    `/account` :ID :ACCOUNT
-:FILE is a relative path from the beancount base folder. E.g., the path `cash/john.bean` would use a file named `john.bean` in the subfolder `cash`. The path supports the directives `%Y` for the current year and `%M` for the current month. If you want to set your own file, just use the command with your own ID. You HAVE to list a file for each user.
-:ACCOUNT is the asset account from which data will be retrieved, e.g. something like Assets:Cash
-:ID is the id of the user.
+    `/account` :ID :ACCOUNT :WITHDRAWAL\_ACCOUNT
+`:FILE` is a relative path from the beancount base folder. E.g., the path `cash/john.bean` would use a file named `john.bean` in the subfolder `cash`. The path supports the directives `%Y` for the current year and `%M` for the current month. If you want to set your own file, just use the command with your own ID. You HAVE to list a file for each user.
+`:ACCOUNT` is the asset account from which data will be retrieved, e.g. something like Assets:Cash.
+`:WITHDRAWAL_ACCOUNT` is the asset account from which money withdrawals will be taken, like Assets:Current
+`:ID` is the id of the user.
 
 You can inspect all users with /users.
             """
@@ -243,9 +258,34 @@ on the second transaction, I will ask you if you want to use the same account as
 If you know the expense account, you can tell me directly:
     `2.5 Supermarket [Shopping:Groceries]`
 
+To withdraw money, type:
+    `/withdraw 200`
+
 Type /help anytime if you want to read this message again.
 """
     )
+
+
+def _withdraw_handler(update: Update, context: CallbackContext):
+    if len(context.args) != 1:
+        update.effective_message.reply_text("Usage /withdraw amount")
+        return
+    amount = _parse_amount(str(context.args[0]))
+    if amount <= 0:
+        update.effective_message.reply_text("Amount invalid.", quote=True)
+        return
+    config.synchronizer.pull()
+    # TODO: this should be cleaned up to also be able to use str(beans.Transaction)
+    # hint: we need to improve the logic that Expense: gets added automatically
+    m = beans.format_amount(amount)
+    tx = f"""
+{date.today():%Y-%m-%d} * "Withdrawal" #bot
+    {context.user_data["opts"]["withdrawal_account"]} {m}
+    {context.user_data["opts"]["account"]}"""
+    beans.append_tx(tx, context.user_data["opts"]["file"])
+    config.synchronizer.push(context.user_data["opts"]["file"])
+    update.effective_message.reply_markdown(text=f"✅ {m[1:]} withdrawn", quote=True)
+
 
 
 def _create_tx(update: Update, context: CallbackContext):
@@ -306,6 +346,7 @@ def _create_tx(update: Update, context: CallbackContext):
 
 
 def _commit_tx(update: Update, context: CallbackContext):
+    # TODO: this should be a handler and have a separate func with the correct parameters
     answer = (
         update.effective_message.edit_text
         if update.effective_message.reply_to_message
@@ -326,7 +367,11 @@ def _commit_tx(update: Update, context: CallbackContext):
         state.tx.asset_account = context.user_data["opts"]["account"]
         config.synchronizer.pull()
         beans.append_tx(str(state.tx), context.user_data["opts"]["file"])
-        orig_msg = update.effective_message.reply_to_message.text if update.effective_message.reply_to_message else update.effective_message.text
+        orig_msg = (
+            update.effective_message.reply_to_message.text
+            if update.effective_message.reply_to_message
+            else update.effective_message.text
+        )
         commit_msg = context.user_data["opts"]["name"] + ": " + orig_msg
         config.synchronizer.push(context.user_data["opts"]["file"], msg=commit_msg)
         answer(text=msg, parse_mode=ParseMode.MARKDOWN, quote=True)

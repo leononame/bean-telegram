@@ -22,6 +22,7 @@ from .handlers import (
     _help_handler,
     _list_users_handler,
     _check_config_handler,
+    _withdraw_handler,
 )
 
 
@@ -60,7 +61,8 @@ def run():
 
     # Help
     dispatcher.add_handler(CommandHandler("help", _help_handler), DEFAULT_GROUP)
-
+    # Withdraw
+    dispatcher.add_handler(CommandHandler("withdraw", _withdraw_handler), DEFAULT_GROUP)
     # Answer to regular messages
     dispatcher.add_handler(
         MessageHandler(Filters.text, _create_tx), group=DEFAULT_GROUP
