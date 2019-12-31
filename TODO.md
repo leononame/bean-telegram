@@ -7,7 +7,6 @@
 - Withdraw money
 - Detail the command preview
 - Logging
-- DAV root_path and path can be one path
 - Show error messages to user
 - Show user that transaction failed on withdrawals
 - Show balance after transaction
