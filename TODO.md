@@ -1,5 +1,4 @@
 - Clean git integration (e.g. with custom ssh keys, etc.)
-- WebDAV test
 - Code cleanup
 - Delete users
 - Tests
@@ -8,5 +7,7 @@
 - Withdraw money
 - Detail the command preview
 - Logging
-- Check why format on save does not work
 - DAV root_path and path can be one path
+- Show error messages to user
+- Show user that transaction failed on withdrawals
+- Show balance after transaction

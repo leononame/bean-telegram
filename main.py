@@ -3,8 +3,8 @@ import os
 import sys
 
 import beans
-from bot import run
 import config
+from bot import run
 
 
 def main():

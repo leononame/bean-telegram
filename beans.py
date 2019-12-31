@@ -1,16 +1,16 @@
 import logging
+import os
 import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List
 from os import path
-import os
+from typing import List
 
 from beancount import loader
 from beancount.core.data import Open as Account
-from beancount.scripts.format import align_beancount
 from beancount.ops import validation
+from beancount.scripts.format import align_beancount
 
 import config
 
@@ -127,4 +127,3 @@ def check():
         logging.getLogger("beans").error(f"Check failed: {errors}")
         return errors
     return None
-

@@ -1,7 +1,9 @@
-from telegram.ext import CallbackContext
-import beans
-from typing import List
 from dataclasses import dataclass, field
+from typing import List
+
+from telegram.ext import CallbackContext
+
+import beans
 
 
 @dataclass

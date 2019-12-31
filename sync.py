@@ -1,7 +1,9 @@
 import subprocess
-import config
 from os import path
+
 from webdav3.client import Client
+
+import config
 
 
 class Sync(object):
