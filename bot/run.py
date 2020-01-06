@@ -1,10 +1,9 @@
-from os import path
+from os.path import join
 
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     Filters,
-    Handler,
     MessageHandler,
     PicklePersistence,
     Updater,
@@ -13,19 +12,19 @@ from telegram.ext import (
 import config
 
 from .handlers import (
-    _add_user_handler,
-    _auth_handler,
-    _check_config_handler,
-    _commit_tx,
-    _create_tx,
-    _err_handler,
-    _help_handler,
-    _list_users_handler,
-    _select_account,
-    _set_user_account_handler,
-    _set_user_file_handler,
-    _start_handler,
-    _withdraw_handler,
+    _handle_account_callback,
+    _handle_add_user,
+    _handle_auth,
+    _handle_check_config,
+    _handle_confirm_callback,
+    _handle_error,
+    _handle_get_users,
+    _handle_help,
+    _handle_message,
+    _handle_set_user_accounts,
+    _handle_set_user_file,
+    _handle_start,
+    _handle_withdraw,
 )
 
 
@@ -37,51 +36,47 @@ def run():
     CONFIG_GROUP = 1
     DEFAULT_GROUP = 5
 
-    # Persistence
-    p = PicklePersistence(path.join(config.db_dir, "telegram.pickle"))
-
-    # Get bot updater and dispatcher
+    # Register persistence for user_data and chat_data, get bot
+    p = PicklePersistence(join(config.db_dir, "telegram.pickle"))
     updater = Updater(config.telegram_api_token, use_context=True, persistence=p)
     dispatcher = updater.dispatcher
 
-    # Register error handler
-    dispatcher.add_error_handler(_err_handler)
+    # Handle all errors
+    dispatcher.add_error_handler(_handle_error)
 
-    # _start_handler registers you as admin if you exist. _auth_handler checks if you are allowed to use the bot
-    dispatcher.add_handler(CommandHandler("start", _start_handler), group=AUTH_GROUP)
-    dispatcher.add_handler(MessageHandler(Filters.all, _auth_handler), group=AUTH_GROUP)
+    # First, the auth group is run.
+    # /start registers a new user as admin if none exist, otherwise gets discarded
+    dispatcher.add_handler(CommandHandler("start", _handle_start), group=AUTH_GROUP)
+    # This handler checks that the user is whitelisted, otherwise stops all other handlers from running
+    dispatcher.add_handler(MessageHandler(Filters.all, _handle_auth), group=AUTH_GROUP)
 
-    # Add, remove users and set their beancount file
-    dispatcher.add_handler(CommandHandler("add", _add_user_handler), CONFIG_GROUP)
-    dispatcher.add_handler(CommandHandler("file", _set_user_file_handler), CONFIG_GROUP)
+    # Add users or update their configuration
+    dispatcher.add_handler(CommandHandler("add", _handle_add_user), CONFIG_GROUP)
+    dispatcher.add_handler(CommandHandler("file", _handle_set_user_file), CONFIG_GROUP)
     dispatcher.add_handler(
-        CommandHandler("account", _set_user_account_handler), CONFIG_GROUP
+        CommandHandler("account", _handle_set_user_accounts), CONFIG_GROUP
     )
-    dispatcher.add_handler(CommandHandler("users", _list_users_handler), CONFIG_GROUP)
+    dispatcher.add_handler(CommandHandler("users", _handle_get_users), CONFIG_GROUP)
+    # Check if the configuration is valid, otherwise stop all other handlers from running
     dispatcher.add_handler(
-        MessageHandler(Filters.all, _check_config_handler), group=CONFIG_GROUP
-    )
-
-    # Help
-    dispatcher.add_handler(CommandHandler("help", _help_handler), DEFAULT_GROUP)
-    # Withdraw
-    dispatcher.add_handler(CommandHandler("withdraw", _withdraw_handler), DEFAULT_GROUP)
-    # Answer to regular messages
-    dispatcher.add_handler(
-        MessageHandler(Filters.text, _create_tx), group=DEFAULT_GROUP
+        MessageHandler(Filters.all, _handle_check_config), group=CONFIG_GROUP
     )
 
-    # Handle callbacks (i.e. the button responses)
+    # Run the default group last
+    dispatcher.add_handler(CommandHandler("help", _handle_help), DEFAULT_GROUP)
+    dispatcher.add_handler(CommandHandler("withdraw", _handle_withdraw), DEFAULT_GROUP)
+    dispatcher.add_handler(MessageHandler(Filters.text, _handle_message), DEFAULT_GROUP)
+
+    # Handle callbacks (when a user presses a button, the response is logged as callback)
     dispatcher.add_handler(
-        CallbackQueryHandler(_select_account, pattern=r"^accounts"), group=DEFAULT_GROUP
+        CallbackQueryHandler(_handle_confirm_callback, pattern=r"^confirm"),
+        DEFAULT_GROUP,
     )
     dispatcher.add_handler(
-        CallbackQueryHandler(_commit_tx, pattern=r"^confirm"), group=DEFAULT_GROUP
+        CallbackQueryHandler(_handle_account_callback, pattern=r"^account"),
+        DEFAULT_GROUP,
     )
 
-    # Start bot
+    # Run
     updater.start_polling()
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()

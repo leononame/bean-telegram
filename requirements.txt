@@ -36,5 +36,5 @@ soupsieve==1.9.5
 tornado==6.0.3
 uritemplate==3.0.1
 urllib3==1.25.7
-wcwidth==0.1.7
+wcwidth==0.1.8
 webdavclient3==0.14

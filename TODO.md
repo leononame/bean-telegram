@@ -1,12 +1,9 @@
 - Clean git integration (e.g. with custom ssh keys, etc.)
-- Code cleanup
 - Delete users
 - Tests
 - CI builds and docker publish
 - Async push operation
-- Withdraw money
-- Detail the command preview
 - Logging
 - Show error messages to user
-- Show user that transaction failed on withdrawals
-- Show balance after transaction
+- Uniform error and response formats
+- Create files/folders if not exist (DAV and locally)
