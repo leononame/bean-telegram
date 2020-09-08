@@ -58,7 +58,7 @@ class Transaction:
 
     def print(self) -> str:
         """Print the transaction as a beancount transaction. The tag ``#bot`` will always be added.
-        
+
         Raises:
             ValueError: Some value is invalid and the transaction cannot be completed.
         """
@@ -95,10 +95,10 @@ class Transaction:
 
 def get_expense_accounts() -> List[str]:
     """Get all expense accounts. The accounts are sorted and will be stripped of the expense prefix.
-    
+
     Returns:
         List[str]: List of expense accounts, stripped of expense prefix.
-    
+
     Raises:
         LoadError: Error occurred while loading beancount files.
         Error: Some other error while loading the accounting data.
@@ -129,10 +129,10 @@ def get_expense_accounts() -> List[str]:
 
 def get_accounts() -> List[str]:
     """Get all accounts that exist. The accounts are sorted.
-    
+
     Returns:
         List[str]: List of accounts.
-    
+
     Raises:
         LoadError: Error occurred while loading beancount files.
         Error: Some other error while loading the accounting data.
@@ -166,7 +166,7 @@ def append_tx(tx: Transaction, fname: str) -> Dict:
         each balance mapped to "credit" and "debit" respectively. For example:
 
         {'credit': '127.05 EUR','debit': '158.09 EUR'}
-    
+
     Raises:
         ValueError: A function parameter is not valid.
     """
@@ -223,10 +223,10 @@ def append_tx(tx: Transaction, fname: str) -> Dict:
 def format_amount(input: int) -> str:
     """Format the amount into an amount string. This supposes that the currency
     has two units, e.g. Cents and Euros, and that 100 Cents equal 1 Euro.
-    
+
     Example: ``1195`` is formatted into ``11.95 EUR`` (if your currency string is ``EUR``)
     """
-    s = f"{int(input/100)}.{input%100} {config.bean_currency}"
+    s = f"{int(input/100)}.{input%100:02} {config.bean_currency}"
     return s
 
 
@@ -247,19 +247,19 @@ def load():
 
 def parse_tx(val: str) -> Transaction:
     """Parse a string into a transaction. The string format to parse looks something like this:
-    
+
         AMOUNT NARRATION TAGS [EXPENSE ACCOUNT]
-    
+
     Tags and Expense Account are optional fields. Valid example formats include:
 
         1.5 Coffee
         10 Entrance Musem #vacation
         200 Tablet [Expenses:Hardware]
         24.95 Restaurant Paris #vacation #vacation2019 [Expenses:Travels]
-    
+
     Args:
         val (:obj: str): The string to parse.
-    
+
     Returns:
         Transaction: The parsed transaction.
 
@@ -297,10 +297,10 @@ def parse_amount(val: str) -> int:
     15.96 parses to 1596
     14,5 parses to 1450
     12 parses to 1200
-    
+
     Args:
         val (:obj: str): The string to parse.
-        
+
     Raises:
         ValueError: The value provided is not parseable into an integer.
     """
