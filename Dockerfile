@@ -1,4 +1,4 @@
-FROM python:3 as builder
+FROM python:3.7 as builder
 
 WORKDIR /app
 COPY requirements.txt requirements.txt
