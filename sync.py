@@ -93,9 +93,9 @@ class GitSync(Sync):
 
     def pull(self):
         """Download updated directory from server."""
-        subprocess.run(command=["git", "reset", "--hard"], dir=self.os_path)
-        subprocess.run(command=["git", "clean", "-fd"], dir=self.os_path)
-        subprocess.run(command=["git", "pull"], dir=self.os_path)
+        subprocess.run(["git", "reset", "--hard"], cwd=self.os_path, check=True)
+        subprocess.run(["git", "clean", "-fd"], cwd=self.os_path, check=True)
+        subprocess.run(["git", "pull"], cwd=self.os_path, check=True)
 
     def push(self, fname, msg=""):
         """Upload a file to the server. If the directory or file does not exist
@@ -107,5 +107,11 @@ class GitSync(Sync):
         """
         if msg == "":
             msg = "bot"
-        subprocess.run(command=["git", "commit", "-am", msg], dir=self.os_path)
-        subprocess.run(command=["git", "push"], dir=self.os_path)
+        print("comitting")
+        subprocess.run(
+            ["git", "commit", "--author", "beanbot <beanbot@lho.io>", "-am", msg],
+            cwd=self.os_path,
+            check=True,
+        )
+        print("committed")
+        subprocess.run(["git", "push"], cwd=self.os_path, check=True)
