@@ -1,8 +1,6 @@
 import logging
 import os
-import sys
 
-import beans
 import config
 from bot import run
 

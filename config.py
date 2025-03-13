@@ -41,3 +41,8 @@ if os.environ.get("SYNC_METHOD") == "dav":
     dpass = _must_get("DAV_PASS")
     dhost = _must_get("DAV_HOST")
     synchronizer = sync.DavSync(bean_path, dpath, droot, duser, dpass, dhost)
+
+if os.environ.get("SYNC_METHOD") == "git":
+    synchronizer = sync.GitSync(
+        bean_path,
+    )
