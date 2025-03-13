@@ -1,0 +1,21 @@
+[project]
+name = "bean-telegram"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Leo", email = "leononame@lho.io" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "beancount (>=2.2.0,<3.0.0)",
+    "python-telegram-bot (>=21.11.1,<22.0.0)",
+    "webdavclient3 (>=3.14.6,<4.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.10"
+

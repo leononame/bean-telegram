@@ -4,12 +4,12 @@ from datetime import date
 from logging import getLogger
 from os import makedirs
 from os.path import dirname, exists, join
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from beancount import loader
 from beancount.core.data import Open as Account
 from beancount.core.inventory import Inventory
-from beancount.ops import balance, validation
+from beancount.ops import validation
 from beancount.query.query import run_query
 from beancount.scripts.format import align_beancount
 
@@ -78,12 +78,12 @@ class Transaction:
 
         # Our debit account is often an Expense account w/o prefix
         accts = get_accounts()
-        if not self.debit_account in accts:
+        if self.debit_account not in accts:
             _, errors, options_map = load()
             if errors:
                 raise ValueError("Can't get debit account correctly")
             self.debit_account = options_map["name_expenses"] + ":" + self.debit_account
-            if not self.debit_account in accts:
+            if self.debit_account not in accts:
                 raise ValueError("Debit account is invalid")
 
         tx = f"""
@@ -111,7 +111,7 @@ def get_expense_accounts() -> List[str]:
         )
         ts = [type(e) for e in errors]
         if loader.LoadError in ts:
-            es = [e.message for e in errors if type(e) == loader.LoadError]
+            es = [e.message for e in errors if e is loader.LoadError]
             raise LoadError("Error while opening beancount file: " + ": ".join(es))
         else:
             raise Error("Error while opening beancount file.")
@@ -144,7 +144,7 @@ def get_accounts() -> List[str]:
         )
         ts = [type(e) for e in errors]
         if loader.LoadError in ts:
-            es = [e.message for e in errors if type(e) == loader.LoadError]
+            es = [e.message for e in errors if e is loader.LoadError]
             raise LoadError("Error while opening beancount file: " + ": ".join(es))
         else:
             raise Error("Error while opening beancount file.")
@@ -192,6 +192,7 @@ def append_tx(tx: Transaction, fname: str) -> Dict:
     with open(fname, "w") as file:
         file.write(data)
     entries, errs, options_map = load()
+
     # on error write old data
     if errs:
         with open(fname, "w") as file:
@@ -202,14 +203,18 @@ def append_tx(tx: Transaction, fname: str) -> Dict:
     d = {}
     try:
         _, rows = run_query(
-            entries, options_map, f"BALANCES WHERE account = '{tx.credit_account}'",
+            entries,
+            options_map,
+            f"BALANCES WHERE account = '{tx.credit_account}'",
         )
         i: Inventory = rows[0][1]
         _, amount = i.popitem()
         d["credit"] = str(amount)
 
         _, rows = run_query(
-            entries, options_map, f"BALANCES WHERE account = '{tx.debit_account}'",
+            entries,
+            options_map,
+            f"BALANCES WHERE account = '{tx.debit_account}'",
         )
         i = rows[0][1]
         _, amount = i.popitem()
@@ -226,7 +231,7 @@ def format_amount(input: int) -> str:
 
     Example: ``1195`` is formatted into ``11.95 EUR`` (if your currency string is ``EUR``)
     """
-    s = f"{int(input/100)}.{input%100:02} {config.bean_currency}"
+    s = f"{int(input / 100)}.{input % 100:02} {config.bean_currency}"
     return s
 
 
